@@ -9,7 +9,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL, // Ganti dengan URL frontend Anda jika di-deploy
+    origin: '*', // Ganti dengan URL frontend Anda jika di-deploy
     methods: ["GET", "POST"]
   }
 });

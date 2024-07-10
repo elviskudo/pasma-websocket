@@ -1,51 +1,49 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
-const socketIo = require('socket.io');
-const cors = require('cors');
-
-require('dotenv').config;
+const WebSocket = require('ws');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: '*', // Ganti dengan URL frontend Anda jika di-deploy
-    methods: ["GET", "POST"]
-  }
-});
+const wss = new WebSocket.Server({ server });
 
-app.use(cors());
-
-// Middleware untuk otorisasi token
-const AUTH_TOKEN = process.env.AUTH_TOKEN
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
-  // Lakukan verifikasi token disini
-  if (token === AUTH_TOKEN) { // Ganti dengan logika verifikasi token yang sesuai
-    next();
-  } else {
-    next(new Error("Unauthorized"));
-  }
-});
-
-io.on('connection', (socket) => {
-  console.log('a user connected');
-
-  // Contoh penanganan pesan dari klien
-  socket.on('chat message', (msg) => {
-    console.log('message: ' + msg);
-    io.emit('chat message', msg);
-  });
-
-  socket.on('disconnect', () => {
-    console.log('user disconnected');
-  });
-});
+const PORT = process.env.PORT || 3000;
+const WEB_SOCKET_PORT = process.env.WEB_SOCKET_PORT || 8080;
 
 app.get('/', (req, res) => {
-  res.send('<h1>Hello world</h1>');
+  res.sendFile(__dirname + '/index.html');
 });
 
-server.listen(3000, () => {
-  console.log('listening on *:3000');
+// Handle WebSocket connections
+wss.on('connection', (ws) => {
+  console.log('Client connected');
+
+  ws.on('message', (message) => {
+    console.log(`Received: ${message}`);
+    // Broadcast message to all clients
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  });
+
+  ws.on('close', () => {
+    console.log('Client disconnected');
+  });
+});
+
+server.listen(PORT, () => {
+  console.log(`HTTP server listening on port ${PORT}`);
+});
+
+const webSocketServer = http.createServer();
+webSocketServer.on('upgrade', (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
+});
+
+webSocketServer.listen(WEB_SOCKET_PORT, () => {
+  console.log(`WebSocket server listening on port ${WEB_SOCKET_PORT}`);
 });
